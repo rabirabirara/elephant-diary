@@ -1,0 +1,30 @@
+
+The dated diary is actually just a tuple of a file type and a program that interprets that file type.  (Might be extended to a file type as an archive, to store images with.)
+
+The goal of the diary is to be able to "send messages" to a diary, as though one were chatting on discord.  I record a lot of my life to my discord spam channel, because I love how simple it is to commit a sentence or clause one after the other, as though imitating real speech.
+
+The file type is a "File", which consists of a list of "Messages" in chronological order.  These messages can be edited; every time you edit and commit the change to the message, you put a "Commit" in its commit history.  When reading a File, you are shown the most recent Commit to any message, but you can also see prior commits to messages for the sake of history.  It's basically any chat channel with a solitary user, except more than just the last edited message, you can see the entire commit history.
+    : if we only recorded the latest edit and an edit status, representation would be much easier...  each time unit can just be on a line...  maybe I should do that?...  maybe i'll just do thatmy
+    : well, we can still do the vec of commits. the file is a list of messages.  each message is delineated from the next with a newline.  each message is a list of commits.  these commits are on their own invidual lines.
+
+
+-Features
+
+: unicode support
+: pictures, eventually
+    : the text file that contains the messages should include links to photos stored somewhere
+    : the photos should be stored in a nearby folder
+    : the entire file might even be saved as an archive - a package of text file with messages and a folder of images
+
+
+
+=Rust tui
+
+-Editor
+
+Two blocks, one large on top which contains the file itself which is a list of sentences, one thin on the bottom which is simply the editing line.  Want to make it dynamically resize as you continue to type, but only to some percentage of the screen; from there, the view of the text simply scrolls.
+
+-Input
+
+Should just be a regular paragraph inside a block.  To display text, you should track state internally in the app and update it as the program continues.  On each frame it should read the string from the app state and then display that accordingly.
+Need to update the size of the block as the paragraph grows, but also need to constrain the size of the block to some percentage of the screen.
