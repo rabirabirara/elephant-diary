@@ -57,7 +57,7 @@ impl App {
     fn unselect(&mut self) {
         self.selected_msg_state.select(None);
     }
-    fn select_down(&mut self) {
+    fn select_up(&mut self) {
         let idx = match self.selected_msg_state.selected() {
             Some(i) => {
                 if i >= self.file.messages.len() - 1 {
@@ -77,7 +77,7 @@ impl App {
         };
         self.selected_msg_state.select(idx);
     }
-    fn select_up(&mut self) {
+    fn select_down(&mut self) {
         let idx = match self.selected_msg_state.selected() {
             Some(i) => {
                 if i == 0 {
