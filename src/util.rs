@@ -5,5 +5,5 @@ use chrono;
 // Need YYYY/MM/DD HH:MM:SS
 pub fn current_time_string() -> String {
     let now = chrono::offset::Local::now();
-    format!("{}", now.format("%Y-%m-%d %H:%M:%S"))
+    format!("{}", now.format("%Y-%m-%d %I:%M:%S %p"))
 }

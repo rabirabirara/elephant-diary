@@ -235,28 +235,19 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         msg_vec.push(ListItem::new(m));
     }
 
-    let msg_title_style = Style::default().add_modifier(Modifier::REVERSED);
     let msg_block = Block::default()
-        .title(Span::styled(
-            if app.file.name().is_empty() {
-                "NEW"
-            } else {
-                app.file.name()
-            },
-            msg_title_style,
-        ))
+        .title(current_time_string())
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
 
     let msg_widget = List::new(msg_vec)
         .block(
             Block::default()
-                .title(current_time_string())
                 .borders(Borders::NONE)
                 .border_type(BorderType::Rounded),
         )
         .style(Style::default())
-        .highlight_style(Style::default().fg(Color::Black).bg(Color::White));
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));    // Modifier::REVERSED means reversed colors, not reversed text.
     // .alignment(Alignment::Center)
     // .scroll()        TODO: don't forget about scrolling this later on
 
