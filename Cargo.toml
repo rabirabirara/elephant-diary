@@ -9,6 +9,4 @@ edition = "2018"
 chrono = { version = "0.4.19" }
 tui = "0.19"
 crossterm = "0.25"
-unicode-width = "0.1.9"
-unicode-linebreak = "0.1.2"
 textwrap = "0.15"

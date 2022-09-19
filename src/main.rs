@@ -1,211 +1,28 @@
 #![allow(dead_code)]
-
-/*
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use std::{error::Error, io};
-use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame, Terminal,
-};
-use unicode_width::UnicodeWidthStr;
-
-enum EditorMode {
-    Normal,
-    Editing,
-}
-
-/// App holds the state of the application
-struct App {
-    /// Current value of the input box
-    input: String,
-    /// Current input mode
-    mode: EditorMode,
-    /// History of recorded messages
-    messages: Vec<String>,
-}
-
-impl Default for App {
-    fn default() -> App {
-        App {
-            input: String::new(),
-            mode: EditorMode::Normal,
-            messages: Vec::new(),
-        }
-    }
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // create app and run it
-    let app = App::default();
-    let res = run_app(&mut terminal, app);
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
-
-    Ok(())
-}
-
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
-    loop {
-        terminal.draw(|f| ui(f, &app))?;
-
-        if let Event::Key(key) = event::read()? {
-            match app.mode {
-                EditorMode::Normal => match key.code {
-                    KeyCode::Char('e') => {
-                        app.mode = EditorMode::Editing;
-                    }
-                    KeyCode::Char('q') => {
-                        return Ok(());
-                    }
-                    _ => {}
-                },
-                EditorMode::Editing => match key.code {
-                    KeyCode::Enter => {
-                        app.messages.push(app.input.drain(..).collect());
-                    }
-                    KeyCode::Char(c) => {
-                        app.input.push(c);
-                    }
-                    KeyCode::Backspace => {
-                        app.input.pop();
-                    }
-                    KeyCode::Esc => {
-                        app.mode = EditorMode::Normal;
-                    }
-                    _ => {}
-                },
-            }
-        }
-    }
-}
-
-fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(2)
-        .constraints(
-            [
-                Constraint::Length(1),
-                Constraint::Length(3),
-                Constraint::Min(1),
-            ]
-            .as_ref(),
-        )
-        .split(f.size());
-
-    let (msg, style) = match app.mode {
-        EditorMode::Normal => (
-            vec![
-                Span::raw("Press "),
-                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to exit, "),
-                Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to start editing."),
-            ],
-            Style::default().add_modifier(Modifier::RAPID_BLINK),
-        ),
-        EditorMode::Editing => (
-            vec![
-                Span::raw("Press "),
-                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing, "),
-                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to record the message"),
-            ],
-            Style::default(),
-        ),
-    };
-    let mut text = Text::from(Spans::from(msg));
-    text.patch_style(style);
-    let help_message = Paragraph::new(text);
-    f.render_widget(help_message, chunks[0]);
-
-    let input = Paragraph::new(app.input.as_ref())
-        .style(match app.mode {
-            EditorMode::Normal => Style::default(),
-            EditorMode::Editing => Style::default().fg(Color::Yellow),
-        })
-        .block(Block::default().borders(Borders::ALL).title("Input"));
-    f.render_widget(input, chunks[1]);
-    match app.mode {
-        EditorMode::Normal =>
-            // Hide the cursor. `Frame` does this by default, so we don't need to do anything here
-            {}
-
-        EditorMode::Editing => {
-            // Make the cursor visible and ask tui-rs to put it at the specified coordinates after rendering
-            f.set_cursor(
-                // Put cursor past the end of the input text
-                chunks[1].x + app.input.width() as u16 + 1,
-                // Move one line down, from the border to the input line
-                chunks[1].y + 1,
-            )
-        }
-    }
-
-    let messages: Vec<ListItem> = app
-        .messages
-        .iter()
-        .enumerate()
-        .map(|(i, m)| {
-            let content = vec![Spans::from(Span::raw(format!("{}: {}", i, m)))];
-            ListItem::new(content)
-        })
-        .collect();
-    let messages =
-        List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
-    f.render_widget(messages, chunks[2]);
-}
-*/
+#![allow(unused_imports)]
 
 mod commit;
+mod util;
 
-use crate::commit::*;
-
-use textwrap;
-use unicode_linebreak::*;
-use unicode_width::UnicodeWidthStr;
+// use crate::commit::*;
+use std::io;
+use std::thread;
+use crate::util::current_time_string;
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::borrow::Cow;
-use std::io;
+use textwrap;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{
-        Block, BorderType, Borders, Cell, List, ListItem, Paragraph, Row, Table, Widget, Wrap,
+        Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Widget,
+        Wrap,
     },
     Frame, Terminal,
 };
@@ -226,6 +43,59 @@ struct App {
     input: String,
     // the current input mode: am I writing right now?
     mode: EditorMode,
+
+    // state of the message view - do I have something selected right now?
+    // I either have nothing selected (input, I guess), or I have a message selected.
+    // I can press I to enter Input from normal no matter where I am.  I can press E while
+    // selecting a message to edit it.
+    // ListState works by telling it whe index you are selecting (Some(index)), or nothing if you
+    // are not (None).
+    selected_msg_state: ListState,
+}
+
+impl App {
+    fn unselect(&mut self) {
+        self.selected_msg_state.select(None);
+    }
+    fn select_down(&mut self) {
+        let idx = match self.selected_msg_state.selected() {
+            Some(i) => {
+                if i >= self.file.messages.len() - 1 {
+                    // Going back to the input bar.
+                    None
+                } else {
+                    Some(i + 1)
+                }
+            }
+            None => {
+                if self.file.messages.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                }
+            }
+        };
+        self.selected_msg_state.select(idx);
+    }
+    fn select_up(&mut self) {
+        let idx = match self.selected_msg_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    None
+                } else {
+                    Some(i - 1)
+                }
+            }
+            None => {
+                if self.file.messages.is_empty() {
+                    None
+                } else {
+                    Some(self.file.messages.len() - 1)
+                }
+            }
+        };
+        self.selected_msg_state.select(idx);
+    }
 }
 
 impl Default for App {
@@ -234,63 +104,70 @@ impl Default for App {
             file: commit::File::new(),
             input: String::new(),
             mode: EditorMode::Normal,
+            selected_msg_state: ListState::default(),
         }
     }
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
-        terminal.draw(|f| ui(f, &app))?;
+        terminal.draw(|f| ui(f, &mut app))?;
 
         // app stuff
         // draw the ui first, then determine the app's state.  the app is only concerned with the
         // input bar, the open file...
 
         // first, need to read the keypress on that frame.
-        if let Event::Key(key) = event::read()? {
-            match app.mode {
-                EditorMode::Normal => {
-                    match key.code {
-                        KeyCode::Char('i') => {
-                            app.mode = EditorMode::Writing;
+        if let Ok(true) = event::poll(std::time::Duration::from_secs(0)) {
+            if let Event::Key(key) = event::read()? {
+                match app.mode {
+                    EditorMode::Normal => {
+                        match key.code {
+                            KeyCode::Char('i') => {
+                                app.mode = EditorMode::Writing;
+                                app.unselect(); // leave message selection
+                            }
+                            KeyCode::Char('w') => {
+                                // TODO: write file; give file name to write to; if no file name provided
+                                // then prompt for a valid file name; else, give file's current file
+                                // name.
+                            }
+                            KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Up        => app.select_up(),
+                            KeyCode::Down      => app.select_down(),
+                            KeyCode::Esc       => app.unselect(),
+                            _ => {}
                         }
-                        KeyCode::Char('w') => {
-                            // TODO: write file; give file name to write to; if no file name provided
-                            // then prompt for a valid file name; else, give file's current file
-                            // name.
+                    }
+                    // TODO: Implement Shift+Tab to go to Normal as well.
+                    EditorMode::Writing | EditorMode::Editing => {
+                        match key.code {
+                            KeyCode::Enter => {
+                                app.file.push_string(app.input.drain(..).collect());
+                            }
+                            KeyCode::Char(c) => {
+                                app.input.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.input.pop();
+                            }
+                            KeyCode::Esc | KeyCode::BackTab => {
+                                app.mode = EditorMode::Normal;
+                            }
+                            // TODO: implement cursor as well as inserting characters anywhere in the
+                            // input bar, not just at the end.
+                            _ => {}
                         }
-                        KeyCode::Char('q') => {
-                            return Ok(());
-                        }
-                        _ => {}
                     }
                 }
-                // TODO: Implement Shift+Tab to go to Normal as well.
-                EditorMode::Writing | EditorMode::Editing => {
-                    match key.code {
-                        KeyCode::Enter => {
-                            app.file.push_string(app.input.drain(..).collect());
-                        }
-                        KeyCode::Char(c) => {
-                            app.input.push(c);
-                        }
-                        KeyCode::Backspace => {
-                            app.input.pop();
-                        }
-                        KeyCode::Esc | KeyCode::BackTab => {
-                            app.mode = EditorMode::Normal;
-                        }
-                        // TODO: implement cursor as well as inserting characters anywhere in the
-                        // input bar, not just at the end.
-                        _ => {}
-                    }
-                }
+            } else {
+                continue;
             }
         }
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
+fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let area = f.size();
 
     // calculate the height of the input bar first!  we will need it when making the layouts.
@@ -336,9 +213,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         )
         .split(f.size());
 
-
     // ==== MESSAGE VIEW ====
-
 
     let message_chunk = Layout::default()
         .horizontal_margin(3)
@@ -347,38 +222,47 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         // .split(f.size()); generates an interesting effect; you can draw widgets over others!
         .split(chunks[0]);
 
-    // TODO add dates to each thing
-    let mut msg_str = String::new();
+    // TODO add dates to each thing on option
+    let mut msg_vec = Vec::new();
     for msg in app.file.messages.iter() {
-        msg_str.push_str(&textwrap::fill(
+        let mut m = textwrap::fill(
             msg.most_recent()
                 .expect("expected the msg to have an actual commit...")
                 .data(),
             message_chunk[0].width as usize,
-        ));
-        msg_str.push('\n');
+        );
+        m.push('\n');
+        msg_vec.push(ListItem::new(m));
     }
 
+    let msg_title_style = Style::default().add_modifier(Modifier::REVERSED);
     let msg_block = Block::default()
+        .title(Span::styled(
+            if app.file.name().is_empty() {
+                "NEW"
+            } else {
+                app.file.name()
+            },
+            msg_title_style,
+        ))
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
 
-    let msg_widget = Paragraph::new(Text::from(msg_str))
+    let msg_widget = List::new(msg_vec)
         .block(
             Block::default()
-                // .title(app.file.name())
-                // .title("<INSERT CURRENT TIME HERE>")
+                .title(current_time_string())
                 .borders(Borders::NONE)
                 .border_type(BorderType::Rounded),
         )
         .style(Style::default())
-        // .alignment(Alignment::Center)
-        // .scroll()        TODO: don't forget about scrolling this later on
-        .wrap(Wrap { trim: false });
+        .highlight_style(Style::default().fg(Color::Black).bg(Color::White));
+    // .alignment(Alignment::Center)
+    // .scroll()        TODO: don't forget about scrolling this later on
 
     // TODO: eventually, have messages begin displaying from the bottom
     f.render_widget(msg_block, chunks[0]);
-    f.render_widget(msg_widget, message_chunk[0]);
+    f.render_stateful_widget(msg_widget, message_chunk[0], &mut app.selected_msg_state);
 
     // ==== INPUT BAR ====
 
@@ -415,7 +299,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
 
     let status_bar_mode = Paragraph::new(Span::styled(mode_text, Style::default().fg(mode_color)))
         .block(Block::default().borders(Borders::NONE));
-    let status_bar_filename = Paragraph::new(if app.file.name().is_empty() {
+    // TODO change this to display the time instead
+    let status_bar_time = Paragraph::new(if app.file.name().is_empty() {
         Span::styled("NEW", Style::default().add_modifier(Modifier::BOLD))
     } else {
         Span::styled(
@@ -426,7 +311,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     .block(Block::default().borders(Borders::NONE))
     .alignment(Alignment::Right);
     f.render_widget(status_bar_mode, status_chunks[0]);
-    f.render_widget(status_bar_filename, status_chunks[1]);
+    f.render_widget(status_bar_time, status_chunks[1]);
 }
 
 fn main() -> Result<(), io::Error> {

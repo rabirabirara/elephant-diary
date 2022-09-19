@@ -17,7 +17,7 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : the entire file might even be saved as an archive - a package of text file with messages and a folder of images
 
 : word wrapping and cursor placement
-    : really fkin hard...
+    : really fkin hard... to implement manually, that is.  but we can use a library to wrap text, and the thing already calculates cursor placement... or does it?
 
 
 =Timeline
@@ -25,16 +25,21 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement App, a simple editing UI, and get it to work in one execution
 : implement word wrapping
     : done with crate textwrap
-
-: implement keyboard cursor
+: implement dynamic UI changes
+: implement keyboard cursor and UI state
     : make messages selectable, so you can see their writing date
         : need to make messages into a List instead of a wrapped Paragraph like it is rn
+: implement UI constant update
+    : need to close ui thread when logic thread is finished
+    : https://stackoverflow.com/questions/26199926/how-to-terminate-or-suspend-a-rust-thread-from-another-thread
+    : turns out I only need to use non-blocking poll instead of read LMAO
 
-: implement dynamic UI changes, UI state
 : implement file type and file saving
+    : use a popup window to type file name to write to?
 : implement start screen and config and MRU list
-: implement mouse
 : implement special key combinations like C-BS to backspace a word
+: implement input cursor.
+: implement mouse
 
 : cache input bar heights and string widths and stuff?
 : option to show/hide dates of messages in message view?

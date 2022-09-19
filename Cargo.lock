@@ -81,8 +81,6 @@ dependencies = [
  "crossterm",
  "textwrap",
  "tui",
- "unicode-linebreak",
- "unicode-width",
 ]
 
 [[package]]
