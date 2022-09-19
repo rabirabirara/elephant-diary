@@ -5,9 +5,9 @@ mod commit;
 mod util;
 
 // use crate::commit::*;
+use crate::util::current_time_string;
 use std::io;
 use std::thread;
-use crate::util::current_time_string;
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -17,7 +17,7 @@ use crossterm::{
 use textwrap;
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{
@@ -133,9 +133,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                                 // name.
                             }
                             KeyCode::Char('q') => return Ok(()),
-                            KeyCode::Up        => app.select_up(),
-                            KeyCode::Down      => app.select_down(),
-                            KeyCode::Esc       => app.unselect(),
+                            KeyCode::Up => app.select_up(),
+                            KeyCode::Down => app.select_down(),
+                            KeyCode::Esc => app.unselect(),
                             _ => {}
                         }
                     }
@@ -224,7 +224,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     // TODO add dates to each thing on option
     let mut msg_vec = Vec::new();
-    for msg in app.file.messages.iter() {
+    for msg in app.file.messages.iter().rev() {
         let mut m = textwrap::fill(
             msg.most_recent()
                 .expect("expected the msg to have an actual commit...")
@@ -247,7 +247,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 .border_type(BorderType::Rounded),
         )
         .style(Style::default())
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));    // Modifier::REVERSED means reversed colors, not reversed text.
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED)) // Modifier::REVERSED means reversed colors, not reversed text.
+        .start_corner(Corner::BottomLeft);
     // .alignment(Alignment::Center)
     // .scroll()        TODO: don't forget about scrolling this later on
 

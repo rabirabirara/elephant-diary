@@ -33,6 +33,8 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : need to close ui thread when logic thread is finished
     : https://stackoverflow.com/questions/26199926/how-to-terminate-or-suspend-a-rust-thread-from-another-thread
     : turns out I only need to use non-blocking poll instead of read LMAO
+: implement scrolling and view automatically updating
+    : works right out the bat with layout::Corner.  PHEW!
 
 : implement file type and file saving
     : use a popup window to type file name to write to?
@@ -41,6 +43,7 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement input cursor.
 : implement mouse
 
+: scrollbar?
 : cache input bar heights and string widths and stuff?
 : option to show/hide dates of messages in message view?
 
