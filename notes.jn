@@ -16,9 +16,52 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : the photos should be stored in a nearby folder
     : the entire file might even be saved as an archive - a package of text file with messages and a folder of images
 
+: word wrapping and cursor placement
+    : really fkin hard...
 
 
-=Rust tui
+=Timeline
+
+: implement App, a simple editing UI, and get it to work in one execution
+: implement word wrapping
+    : done with crate textwrap
+: implement keyboard cursor
+: implement dynamic UI changes, UI state
+: implement file type and file saving
+: implement start screen and config and MRU list
+: implement mouse
+: implement special key combinations like C-BS to backspace a word
+
+: cache input bar heights and string widths and stuff?
+
+
+=Business logic and app state
+
+-appdata, config, recording information
+
+: will need to save a list of recently opened files.
+: will need to save a config file.
+
+-ram and open files
+: keep open files in memory
+    : if file is too large, still open a tab, but don't put in memory
+: allow you to switch between open files in tabs
+
+
+=TUI description
+
+-Start screen
+
+Only shows if specific file wasn't opened already.
+Should show a list of recently opened files that you can select from and open.
+    : Make sure to implement a Stateful List so that you can highlight items the cursor is over.
+
+Maybe also show some commands, like New..., Open..., Close... etc.
+But give them cute names.  like:
+Start a chat...
+Resume a chat...
+Log off...
+
 
 -Editor
 
@@ -27,4 +70,20 @@ Two blocks, one large on top which contains the file itself which is a list of s
 -Input
 
 Should just be a regular paragraph inside a block.  To display text, you should track state internally in the app and update it as the program continues.  On each frame it should read the string from the app state and then display that accordingly.
-Need to update the size of the block as the paragraph grows, but also need to constrain the size of the block to some percentage of the screen.
+Need to update the size of the block as the paragraph grows, but also need to constrain the size of the block to some percentage of the screen.  Also, need for the input to be a minimum size.
+needs a Wrap widget too.
+
+To prevent the input from growing beyond 20% of the string, set top part's Constraint to 80%.
+
+Want the input bar height to be at most 20% of the frame's height.
+Want the input bar height to be at least 3 (1 row for the text, 2 for the top and bottom borders).
+Want the input bar height to start at 3.
+
+Set the cursor to the end, calculate it somehow.
+
+Change the bordertype of the input box when editing a previous commit.
+Make it normal otherwise.
+
+So the way app design works is that you have AppState for a Stateful application, and then you have the UI, which may have its own state, and then you do every 
+
+# Write a function that, given a rectangle and a string, decides how to fit and wrap the string.

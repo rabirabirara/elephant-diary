@@ -6,12 +6,11 @@ use std::fmt::{self, Display, Formatter};
 
 const TIME_FORMAT_STRING: &str = "%Y %b %d %H:%M:%S %z";
 
-
 // A file is a list of messages.
 #[derive(Debug, Clone)]
 pub struct File {
     file_name: String,
-    messages: Vec<Message>,
+    pub messages: Vec<Message>,
 }
 
 impl File {
@@ -21,8 +20,15 @@ impl File {
             messages: Vec::new(),
         }
     }
+    pub fn name(&self) -> &str {
+        &self.file_name
+    }
     pub fn set_name(&mut self, file_name: String) {
         self.file_name = file_name;
+    }
+    pub fn push_string(&mut self, s: String) {
+        self.messages
+            .push(Message::from_commit(Commit::from_data(s)));
     }
     pub fn push_msg(&mut self, msg: Message) {
         self.messages.push(msg);
@@ -39,7 +45,6 @@ impl Display for File {
     }
 }
 
-
 // A message is a stack of commits, where the most recent commit is at the top.
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -53,9 +58,7 @@ impl Message {
         }
     }
     pub fn from_commit(c: Commit) -> Self {
-        Self {
-            commits: vec![c]
-        }
+        Self { commits: vec![c] }
     }
     pub fn empty(&self) -> bool {
         self.commits.is_empty()
@@ -80,7 +83,6 @@ impl Display for Message {
     }
 }
 
-
 // A commit is a string message, as well as a time.
 #[derive(Debug, Clone)]
 pub struct Commit {
@@ -100,6 +102,9 @@ impl Commit {
             data: String::new(),
         }
     }
+    pub fn data(&self) -> &str {
+        &self.data
+    }
     pub fn from_data(data: String) -> Self {
         Self {
             time: Utc::now(),
@@ -114,6 +119,11 @@ impl Commit {
 
 impl Display for Commit {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            write!(f, "{} | {}", self.time.format(TIME_FORMAT_STRING), self.data)
+        write!(
+            f,
+            "{} | {}",
+            self.time.format(TIME_FORMAT_STRING),
+            self.data
+        )
     }
 }
