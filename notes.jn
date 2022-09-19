@@ -25,7 +25,11 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement App, a simple editing UI, and get it to work in one execution
 : implement word wrapping
     : done with crate textwrap
+
 : implement keyboard cursor
+    : make messages selectable, so you can see their writing date
+        : need to make messages into a List instead of a wrapped Paragraph like it is rn
+
 : implement dynamic UI changes, UI state
 : implement file type and file saving
 : implement start screen and config and MRU list
@@ -33,6 +37,7 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement special key combinations like C-BS to backspace a word
 
 : cache input bar heights and string widths and stuff?
+: option to show/hide dates of messages in message view?
 
 
 =Business logic and app state

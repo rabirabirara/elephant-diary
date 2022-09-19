@@ -197,6 +197,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::borrow::Cow;
 use std::io;
 use tui::{
     backend::{Backend, CrosstermBackend},
@@ -292,12 +293,26 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let area = f.size();
 
-    // calculate the height of the input bar
-    // calculate linebreaks with a greedy algorithm
+    // calculate the height of the input bar first!  we will need it when making the layouts.
+    let input_wrap = textwrap::wrap(
+        app.input.as_ref(),
+        area.width.checked_sub(2).unwrap_or(1) as usize,
+    );
+    let input_line_count = usize::max(1, input_wrap.len());
 
-    // TODO: minimum 3, maximum 20% of screen; calculate maximum 20% of screen
-    // max 20% = area.height * 0.2
-    let input_bar_height = 3;
+    let max_height = (area.height as f32 * 0.2).ceil() as usize;
+
+    // decide what goes into the displayed input string by using only the last max_height lines.
+    let input_str = input_wrap
+        .iter()
+        .rev()
+        .take(max_height)
+        .map(|x| x.as_ref())
+        .rev()
+        .collect::<Vec<&str>>()
+        .join("\n");
+
+    let input_bar_height = 2 + input_line_count as u16;
     let vertical_margin = 1;
     let file_view_height = area
         .height
@@ -320,6 +335,10 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
             .as_ref(),
         )
         .split(f.size());
+
+
+    // ==== MESSAGE VIEW ====
+
 
     let message_chunk = Layout::default()
         .horizontal_margin(3)
@@ -344,11 +363,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
 
-    // Span is a span of text, single line.
-    // Vec<Span> -> Spans, which is just like a collection of Span in one object.
-    // A Text is created from Spans or from a String, etc.
-    // A Paragraph is created from a Text.
-    let msgs = Paragraph::new(Text::from(msg_str))
+    let msg_widget = Paragraph::new(Text::from(msg_str))
         .block(
             Block::default()
                 // .title(app.file.name())
@@ -363,14 +378,17 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
 
     // TODO: eventually, have messages begin displaying from the bottom
     f.render_widget(msg_block, chunks[0]);
-    f.render_widget(msgs, message_chunk[0]);
+    f.render_widget(msg_widget, message_chunk[0]);
+
+    // ==== INPUT BAR ====
 
     let input_title = if app.input.is_empty() {
         "Type here"
     } else {
         "Typing..."
     };
-    let input_bar = Paragraph::new(app.input.as_ref()).block(
+
+    let input_bar = Paragraph::new(input_str).block(
         Block::default()
             .title(input_title)
             .borders(Borders::ALL)
@@ -378,12 +396,15 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     );
     f.render_widget(input_bar, chunks[1]);
 
+    // ==== STATUS BAR ====
+
     // TODO: show text: like what mode, what file name, whether editing or writing... etc.
     let (mode_text, mode_color) = match app.mode {
         EditorMode::Normal => ("NORMAL", Color::Blue),
         EditorMode::Writing => ("WRITE", Color::Green),
         EditorMode::Editing => ("EDIT", Color::Red),
     };
+
     // TODO: make this a spans and calculate the spaces needed to right-justify the file name on
     // the other side, or maybe just use a layout?
     let status_chunks = Layout::default()
