@@ -41,6 +41,8 @@ struct App {
     file: commit::File,
     // the state of the current input
     input: String,
+    // the state of the current edit
+    edit: Option<Edit>,
     // the current input mode: am I writing right now?
     mode: EditorMode,
 
@@ -51,6 +53,20 @@ struct App {
     // ListState works by telling it whe index you are selecting (Some(index)), or nothing if you
     // are not (None).
     selected_msg_state: ListState,
+}
+
+struct Edit {
+    input: String,
+    index: usize,
+}
+
+impl Edit {
+    fn from(input: String, index: usize) -> Self {
+        Edit { input, index }
+    }
+    fn update(&mut self, s: String) {
+        self.input = s;
+    }
 }
 
 impl App {
@@ -96,6 +112,9 @@ impl App {
         };
         self.selected_msg_state.select(idx);
     }
+    fn selected(&self) -> Option<usize> {
+        self.selected_msg_state.selected()
+    }
 }
 
 impl Default for App {
@@ -103,6 +122,7 @@ impl Default for App {
         App {
             file: commit::File::new(),
             input: String::new(),
+            edit: None,
             mode: EditorMode::Normal,
             selected_msg_state: ListState::default(),
         }
@@ -127,10 +147,47 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                                 app.mode = EditorMode::Writing;
                                 app.unselect(); // leave message selection
                             }
+                            KeyCode::Char('e') => {
+                                if let Some(msg_idx) = app.selected() {
+                                    app.mode = EditorMode::Editing;
+
+                                    // so, msg_idx is usually the complement of the actual index in the
+                                    // file. e.g. msg_idx = 0? then the most recent message is chosen.
+                                    let msg_count = app.file.messages.len();
+                                    let file_idx = msg_count - msg_idx - 1;
+                                    // could also do iter().rev().nth(msg_idx)...
+
+                                    // take the message at file_idx, get its most recent commit,
+                                    let mrc = app
+                                        .file
+                                        .messages
+                                        .iter()
+                                        .nth(file_idx)
+                                        .expect(
+                                            format!(
+                                                "shoulda had a message at mi {}, fi {}",
+                                                msg_idx, file_idx
+                                            )
+                                            .as_ref(),
+                                        )
+                                        .most_recent()
+                                        .expect("a message should have a commit... it's not possible to be without one")
+                                        .data();
+
+                                    // set the editing input bar to that and show it
+                                    app.edit = Some(Edit::from(mrc.to_string(), file_idx));
+                                } else {
+                                    // he didn't select a message, so just put him in Write mode,
+                                    // on a new message.
+                                    app.mode = EditorMode::Writing;
+                                }
+                            }
                             KeyCode::Char('w') => {
                                 // TODO: write file; give file name to write to; if no file name provided
                                 // then prompt for a valid file name; else, give file's current file
                                 // name.
+                                // for now just save to file called "new"
+                                app.file.write_to_path("new".to_string());
                             }
                             KeyCode::Char('q') => return Ok(()),
                             KeyCode::Up => app.select_up(),
@@ -140,10 +197,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         }
                     }
                     // TODO: Implement Shift+Tab to go to Normal as well.
-                    EditorMode::Writing | EditorMode::Editing => {
+                    EditorMode::Writing => {
                         match key.code {
                             KeyCode::Enter => {
-                                app.file.push_string(app.input.drain(..).collect());
+                                let input = app.input.trim_end();
+                                app.file.push_string(input.to_string());
+                                app.input.clear();
                             }
                             KeyCode::Char(c) => {
                                 app.input.push(c);
@@ -159,9 +218,56 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                             _ => {}
                         }
                     }
+                    EditorMode::Editing => {
+                        if let Some(edit) = &mut app.edit {
+                            match key.code {
+                                KeyCode::Enter => {
+                                    let input = edit.input.trim_end();
+
+                                    // find the Message at edit.index and commit the current
+                                    // edit.input to it.
+                                    app.file
+                                        .messages
+                                        .iter_mut()
+                                        .nth(edit.index)
+                                        .expect(
+                                            format!(
+                                                "should have message at file index {}",
+                                                edit.index
+                                            )
+                                            .as_ref(),
+                                        )
+                                        .push_commit(commit::Commit::from_data(input.to_string()));
+
+                                    // now return to normal mode and unselect.
+                                    app.mode = EditorMode::Normal;
+                                    app.edit = None;
+                                    app.unselect();
+                                }
+                                KeyCode::Char(c) => {
+                                    edit.input.push(c);
+                                }
+                                KeyCode::Backspace => {
+                                    edit.input.pop();
+                                }
+                                KeyCode::Esc | KeyCode::BackTab => {
+                                    // clears the current edit state.  sorry, if you want to scroll
+                                    // up, need mouse.
+                                    // TODO: find a way to let people scroll while preserving the
+                                    // edit state. i.e. without clearing app.edit outright.
+                                    app.mode = EditorMode::Normal;
+                                    app.edit = None;
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            // if we somehow are in editing mode without any information about what
+                            // to edit, just quit back to write mode.
+                            app.mode = EditorMode::Writing;
+                            app.unselect();
+                        }
+                    }
                 }
-            } else {
-                continue;
             }
         }
     }
@@ -170,9 +276,15 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let area = f.size();
 
+    let input = if let Some(edit) = &app.edit {
+        edit.input.clone()
+    } else {
+        app.input.clone()
+    };
+
     // calculate the height of the input bar first!  we will need it when making the layouts.
     let input_wrap = textwrap::wrap(
-        app.input.as_ref(),
+        input.as_ref(),
         area.width.checked_sub(2).unwrap_or(1) as usize,
     );
     let input_line_count = usize::max(1, input_wrap.len());
@@ -258,10 +370,10 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     // ==== INPUT BAR ====
 
-    let input_title = if app.input.is_empty() {
-        "Type here"
-    } else {
-        "Typing..."
+    let input_title = match app.mode {
+        EditorMode::Normal => "Type here",
+        EditorMode::Writing => "Typing... ",
+        EditorMode::Editing => "Editing... ",
     };
 
     let input_bar = Paragraph::new(input_str).block(
