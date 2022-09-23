@@ -27,6 +27,7 @@ use tui::{
     Frame, Terminal,
 };
 
+#[derive(PartialEq)]
 enum EditorMode {
     // normal: can select messages and view information about them and select options on them
     // clicking with the mouse enters normal mode; the current input should be saved
@@ -38,7 +39,7 @@ enum EditorMode {
 // Contains the state of the application.
 struct App {
     // not really planning to have more than one file open at a time.  it's a diary for god's sake.
-    file: commit::File,
+    file: commit::Diary,
     // the state of the current input
     input: String,
     // the state of the current edit
@@ -120,7 +121,7 @@ impl App {
 impl Default for App {
     fn default() -> App {
         App {
-            file: commit::File::new(),
+            file: commit::Diary::new(),
             input: String::new(),
             edit: None,
             mode: EditorMode::Normal,
@@ -276,8 +277,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let area = f.size();
 
-    let input = if let Some(edit) = &app.edit {
-        edit.input.clone()
+    let input = if app.edit.is_some() && app.mode == EditorMode::Editing {
+        // safety: checked if it was some
+        app.edit.as_ref().unwrap().input.clone()
     } else {
         app.input.clone()
     };
@@ -334,7 +336,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         // .split(f.size()); generates an interesting effect; you can draw widgets over others!
         .split(chunks[0]);
 
-    // TODO add dates to each thing on option
+    // TODO add dates to each thing on option; remember to convert from file-stored Utc to Local
     let mut msg_vec = Vec::new();
     for msg in app.file.messages.iter().rev() {
         let mut m = textwrap::fill(
@@ -348,7 +350,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     }
 
     let msg_block = Block::default()
-        .title(current_time_string())
+        .title(current_time_string()) // uses Local, not Utc
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
 
