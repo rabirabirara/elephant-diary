@@ -197,7 +197,7 @@ fn parse_commit_string(commit: &str) -> Commit {
         .expect("this is the time part of the string");
     let time = Utc
         .datetime_from_str(time_str, TIME_FORMAT_STRING)
-        .expect("every timestamp should be formatted properly");
+        .expect(format!("every timestamp should be formatted properly/ offender: {}, format: {}", time_str, TIME_FORMAT_STRING).as_ref());
     let data = time_data_split
         .next()
         .expect("this is the data part of the string")
