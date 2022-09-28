@@ -3,6 +3,8 @@
 
 mod app;
 mod commit;
+mod config;
+mod cursor;
 mod util;
 
 use app::*;
@@ -23,8 +25,8 @@ use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{
-        Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Widget,
-        Wrap,
+        Block, BorderType, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table,
+        Widget, Wrap,
     },
     Frame, Terminal,
 };
@@ -74,7 +76,13 @@ fn start_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     ))
     .block(Block::default().borders(Borders::ALL));
 
-    let mru_list_items: Vec<ListItem> = app.start.mru.iter().map(|x| ListItem::new(x.as_ref())).collect();
+    // * We actually store the mru in the config.
+    let mru_list_items: Vec<ListItem> = app
+        .config
+        .mru
+        .iter()
+        .map(|x| ListItem::new(x.as_ref()))
+        .collect();
     let mru_list = List::new(mru_list_items)
         .block(Block::default().borders(Borders::ALL))
         .style(Style::default())
@@ -112,16 +120,19 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .collect::<Vec<&str>>()
         .join("\n");
 
+    let message_bar_height = 1; // TODO: later adapt the message bar to be variable size
     let input_bar_height = usize::min(2 + input_line_count, max_height) as u16;
     let vertical_margin = 1;
-    let file_view_height = area
-        .height
-        .checked_sub(2 * vertical_margin)
-        .unwrap_or(0)
-        .checked_sub(input_bar_height)
-        .unwrap_or(0)
-        .checked_sub(1)
-        .unwrap_or(0); // 1 from the status bar
+    let file_view_height = {
+        || {
+            area.height
+                .checked_sub(2 * vertical_margin)?
+                .checked_sub(input_bar_height)?
+                .checked_sub(1)? // from status bar
+                .checked_sub(message_bar_height) // from message bar
+        }
+    }()
+    .unwrap_or(0);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -131,6 +142,7 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 Constraint::Length(file_view_height),
                 Constraint::Length(input_bar_height),
                 Constraint::Length(1),
+                Constraint::Length(message_bar_height),
             ]
             .as_ref(),
         )
@@ -182,6 +194,7 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         EditorMode::Normal => "Type here",
         EditorMode::Writing => "Typing... ",
         EditorMode::Editing => "Editing... ",
+        EditorMode::Saving => "Saving!",
     };
 
     // TODO: store scroll state of this input.
@@ -200,6 +213,7 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         EditorMode::Normal => {}
         EditorMode::Writing => {}
         EditorMode::Editing => {}
+        EditorMode::Saving => {}
     }
 
     // ==== STATUS BAR ====
@@ -209,6 +223,7 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         EditorMode::Normal => ("NORMAL", Color::Blue),
         EditorMode::Writing => ("WRITE", Color::Green),
         EditorMode::Editing => ("EDIT", Color::Red),
+        EditorMode::Saving => ("NORMAL", Color::Blue),
     };
 
     // TODO: make this a spans and calculate the spaces needed to right-justify the file name on
@@ -216,16 +231,16 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let status_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .horizontal_margin(2)
-        .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
+        .constraints([Constraint::Min(10), Constraint::Percentage(100)].as_ref())
         .split(chunks[2]);
 
     let status_bar_mode = Paragraph::new(Span::styled(mode_text, Style::default().fg(mode_color)))
         .block(Block::default().borders(Borders::NONE));
-    let status_bar_title = Paragraph::new(if app.file.name().is_empty() {
+    let status_bar_title = Paragraph::new(if app.file.name.is_empty() {
         Span::styled("NEW", Style::default().add_modifier(Modifier::BOLD))
     } else {
         Span::styled(
-            app.file.name(),
+            &app.file.name,
             Style::default().add_modifier(Modifier::ITALIC),
         )
     })
@@ -233,15 +248,67 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     .alignment(Alignment::Right);
     f.render_widget(status_bar_mode, status_chunks[0]);
     f.render_widget(status_bar_title, status_chunks[1]);
+
+    // ==== MESSAGE BAR ====
+    // TODO: create a message bar, like in Vim, that expands as the status message
+    // grows.  Put it beneath the current status bar
+    let status_message = Paragraph::new(app.status_msg.as_ref());
+    f.render_widget(status_message, chunks[3]);
+
+    // ==== SAVE-AS POPUP WINDOW ====
+    if app.mode == EditorMode::Saving {
+        let center_col = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(
+                [
+                    Constraint::Percentage(10),
+                    Constraint::Percentage(80),
+                    Constraint::Percentage(10),
+                ]
+                .as_ref(),
+            )
+            .split(f.size());
+        let center_row = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                [
+                    Constraint::Percentage(25),
+                    Constraint::Length(5),
+                    Constraint::Percentage(25),
+                ]
+                .as_ref(),
+            )
+            .split(center_col[1]);
+        let center = center_row[1];
+
+        let popup_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .horizontal_margin(1)
+            .constraints([Constraint::Length(1), Constraint::Length(2), Constraint::Percentage(100)].as_ref())
+            .split(center);
+
+        let popup = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Double);
+        let note = Paragraph::new("Enter file name: ")
+            .block(Block::default().borders(Borders::BOTTOM).border_type(BorderType::Plain))
+            .alignment(Alignment::Center);
+        let filename = app.temp_input.clone();
+        let name = Paragraph::new(filename.as_ref());
+
+        f.render_widget(Clear, center);
+        f.render_widget(popup, center);
+        f.render_widget(note, popup_layout[1]);
+        f.render_widget(name, popup_layout[2]);
+    }
 }
 
 fn prequit_screen<B: Backend>(f: &mut Frame<B>, _app: &mut App) {
     // TODO implement quit screen that is merely a popup window asking if you want to save unsaved
     // work
-    let closing_message = Paragraph::new("Press any key to continue...");
+    let closing_message = Paragraph::new("Quit? (Y/n)");
     f.render_widget(closing_message, f.size());
 }
-
 
 fn main() -> Result<(), io::Error> {
     // raw mode: input is sent raw to the terminal and can be processed as keystrokes.

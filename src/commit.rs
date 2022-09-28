@@ -14,28 +14,22 @@ pub struct FileParseError;
 // A file is a list of messages.
 #[derive(Debug, Clone)]
 pub struct Diary {
-    file_name: String,
+    pub name: String,
     pub messages: Vec<Message>,
 }
 
 impl Diary {
     pub fn new() -> Self {
         Self {
-            file_name: String::new(),
+            name: String::new(),
             messages: Vec::new(),
         }
     }
-    pub fn from(file_name: String, messages: Vec<Message>) -> Self {
+    pub fn from(name: String, messages: Vec<Message>) -> Self {
         Self {
-            file_name,
+            name,
             messages,
         }
-    }
-    pub fn name(&self) -> &str {
-        &self.file_name
-    }
-    pub fn set_name(&mut self, file_name: String) {
-        self.file_name = file_name;
     }
     pub fn push_string(&mut self, s: String) {
         self.messages
@@ -47,14 +41,14 @@ impl Diary {
     pub fn write_to_path(&self, path: String) {
         fs::write(path, self.to_string()).expect("unable to write to file!");
     }
-    pub fn read_from_path(path: String) -> io::Result<Diary> {
+    pub fn read_from_path(path: &str) -> io::Result<Diary> {
         Self::from_str(&fs::read_to_string(path)?)
     }
 }
 
 impl Display for Diary {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}", self.file_name)?;
+        writeln!(f, "{}", self.name)?;
         for message in self.messages.iter() {
             // the newline is ended already at the end of each message
             write!(f, "{}", message)?;
@@ -69,7 +63,7 @@ impl FromStr for Diary {
     fn from_str(s: &str) -> io::Result<Diary> {
         let mut lines = s.split('\n');
         let filename_line = lines.next();
-        let file_name = filename_line
+        let name = filename_line
             .expect("the lines iterator should have a line");
         let mut messages = Vec::new();
 
@@ -89,7 +83,7 @@ impl FromStr for Diary {
             }
         }
 
-        Ok(Diary::from(file_name.to_string(), messages))
+        Ok(Diary::from(name.to_string(), messages))
     }
 }
 
@@ -124,6 +118,9 @@ impl Message {
         } else {
             None
         }
+    }
+    pub fn oldest(&self) -> Option<&Commit> {
+        self.commits.first()
     }
     pub fn most_recent(&self) -> Option<&Commit> {
         self.commits.last()
@@ -166,6 +163,9 @@ impl Commit {
     }
     pub fn from(time: DateTime<Utc>, data: String) -> Self {
         Self { time, data }
+    }
+    pub fn time(&self) -> DateTime<Utc> {
+        self.time
     }
     pub fn data(&self) -> &str {
         &self.data

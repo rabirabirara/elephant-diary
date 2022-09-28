@@ -1,9 +1,12 @@
 use crate::commit;
-
+use crate::config::DiaryConfig;
 use crate::util::current_time_string;
+use std::fs::canonicalize;
 use std::io;
+use std::path::PathBuf;
 use std::thread;
 
+use chrono::prelude::{DateTime, Local, Utc};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
     execute,
@@ -18,15 +21,15 @@ pub enum EditorMode {
     Normal,
     Writing,
     Editing,
+    Saving,
 }
 
 // Contains the state of the application.
 pub struct App {
+    // the configuration of the application.
+    pub config: DiaryConfig,
     // what screen am I on right now?
     pub route: AppRoute,
-
-    // the state of the start screen
-    pub start: Start,
 
     // not really planning to have more than one file open at a time.  it's a diary for god's sake.
     pub file: commit::Diary,
@@ -34,11 +37,16 @@ pub struct App {
     // the state of the current input
     pub input: Input,
 
-
     // the state of the current edit
     pub edit: Option<Edit>,
+
     // the current input mode: am I writing right now?
     pub mode: EditorMode,
+    // the status bar message
+    pub status_msg: String,
+
+    // temporary input, used for anything where you need a general input for a single screen.
+    pub temp_input: String,
 
     // state of the message view - do I have something selected right now?
     // I either have nothing selected (input, I guess), or I have a message selected.
@@ -55,12 +63,6 @@ pub enum AppRoute {
     Edit,
     PreQuit,
     Quit,
-}
-
-#[derive(Default)]
-pub struct Start {
-    // contains a vec of paths to the most recently used files
-    pub mru: Vec<String>,
 }
 
 #[derive(Clone, Default)]
@@ -85,11 +87,7 @@ impl Edit {
 
 impl App {
     // call startup routine
-    pub fn startup(&mut self) {
-        // TODO open config
-        // TODO open mru list
-        self.start = Start { mru: vec!["new".to_string(), "old".to_string()] };
-    }
+    pub fn startup(&mut self) {}
     // call normal loop routine
     pub fn run(&mut self) -> io::Result<bool> {
         if self.route == AppRoute::Quit {
@@ -100,7 +98,7 @@ impl App {
                 match self.route {
                     AppRoute::Start => self.run_start(key),
                     AppRoute::Edit => self.run_edit(key),
-                    AppRoute::PreQuit => self.run_quit(key),      // TODO should run a quit protocol - if not saved, don't quit yet, try and confirm!
+                    AppRoute::PreQuit => self.run_prequit(key), // TODO should run a quit protocol - if not saved, don't quit yet, try and confirm!
                     _ => unreachable!(),
                 }
             }
@@ -117,24 +115,29 @@ impl App {
                 if let Some(msg_idx) = self.selected() {
                     // TODO app should open an mru list stored somewhere, find the appropriate
                     // index, then open that file and transition into AppRoute::Edit
-                    
+
                     // open the file and completely disregard the new file created by default.
                     // too lazy to refactor app.file into Option<Diary>...
-                    if let Some(filepath) = self.start.mru.iter().nth(msg_idx) {
-                        if let Ok(diary) = commit::Diary::read_from_path(filepath.into()) {
+                    if let Some(filepath) = self.config.mru.iter().nth(msg_idx) {
+                        // TODO: filepath should be absolute.
+                        if let Ok(diary) = commit::Diary::read_from_path(filepath) {
                             self.file = diary;
+                            self.config.update_mru_with(filepath.into());
                         } else {
                             eprintln!("Err: failed to open {} into a valid diary.  This is probably because Rust failed to parse the file at the path.", filepath);
                         }
                     } else {
-                        eprintln!("Err: ui has {} selected but that entry is not found in app.start.mru", msg_idx);
+                        eprintln!(
+                            "Err: ui has {} selected but that entry is not found in app.start.mru",
+                            msg_idx
+                        );
                     }
 
                     self.route = AppRoute::Edit;
                 }
             }
-            KeyCode::Up => self.select_down(self.start.mru.len()),
-            KeyCode::Down => self.select_up(self.start.mru.len()),
+            KeyCode::Up => self.select_down(self.config.mru.len()),
+            KeyCode::Down => self.select_up(self.config.mru.len()),
             KeyCode::Esc => self.unselect(),
             _ => (),
         }
@@ -145,12 +148,12 @@ impl App {
             EditorMode::Normal => {
                 match key.code {
                     KeyCode::Char('i') => {
-                        self.mode = EditorMode::Writing;
+                        self.change_mode(EditorMode::Writing);
                         self.unselect(); // leave message selection
                     }
                     KeyCode::Char('e') => {
                         if let Some(msg_idx) = self.selected() {
-                            self.mode = EditorMode::Editing;
+                            self.change_mode(EditorMode::Editing);
 
                             // so, msg_idx is usually the complement of the actual index in the
                             // file. e.g. msg_idx = 0? then the most recent message is chosen.
@@ -180,16 +183,35 @@ impl App {
                         } else {
                             // he didn't select a message, so just put him in Write mode,
                             // on a new message.
-                            self.mode = EditorMode::Writing;
+                            self.change_mode(EditorMode::Writing);
+                        }
+                    }
+                    KeyCode::Char('W') => {
+                        if !self.file.messages.is_empty() {
+                            self.change_mode(EditorMode::Saving);
+                        } else {
+                            self.set_status(String::from("Nothing to write!..."));
                         }
                     }
                     KeyCode::Char('w') => {
                         // TODO: write file; give file name to write to; if no file name provided
                         // then prompt for a valid file name; else, give file's current file
-                        // name.
-                        // for now just save to file called "new"
-                        self.file.write_to_path("new".to_string());
-                        // TODO: write to mru when file has a filename and is being opened, or when
+                        // TODO make a whole saving screen, actually, since save-as will be useful
+                        // later on.
+
+                        // for now, if file is new, just save to file named after date of oldest message
+                        if self.file.messages.is_empty() {
+                            self.set_status(String::from("Nothing to write!..."));
+                        } else {
+                            if self.file.name.is_empty() {
+                                self.change_mode(EditorMode::Saving);
+                            } else {
+                                // write to filename
+                                self.file.write_to_path(self.file.name.clone());
+                            }
+                        }
+
+                        // write to mru when file has a filename and is being opened, or when
                         // a file is new and is being written.
                     }
                     KeyCode::Char('q') => self.route = AppRoute::PreQuit,
@@ -199,7 +221,6 @@ impl App {
                     _ => {}
                 }
             }
-            // TODO: Implement Shift+Tab to go to Normal as well.
             EditorMode::Writing => {
                 match key.code {
                     KeyCode::Enter => {
@@ -214,7 +235,7 @@ impl App {
                         self.input.write_input.pop();
                     }
                     KeyCode::Esc | KeyCode::BackTab => {
-                        self.mode = EditorMode::Normal;
+                        self.change_mode(EditorMode::Normal);
                     }
                     // TODO: implement cursor as well as inserting characters anywhere in the
                     // input bar, not just at the end.
@@ -240,7 +261,7 @@ impl App {
                                 .push_commit(commit::Commit::from_data(input.to_string()));
 
                             // now return to normal mode and unselect.
-                            self.mode = EditorMode::Normal;
+                            self.change_mode(EditorMode::Normal);
                             self.edit = None;
                             self.unselect();
                         }
@@ -255,7 +276,7 @@ impl App {
                             // up, need mouse.
                             // TODO: find a way to let people scroll while preserving the
                             // edit state. i.e. without clearing self.edit outright.
-                            self.mode = EditorMode::Normal;
+                            self.change_mode(EditorMode::Normal);
                             self.edit = None;
                         }
                         _ => {}
@@ -263,18 +284,67 @@ impl App {
                 } else {
                     // if we somehow are in editing mode without any information about what
                     // to edit, just quit back to write mode.
-                    self.mode = EditorMode::Writing;
+                    self.change_mode(EditorMode::Writing);
                     self.unselect();
+                }
+            }
+            EditorMode::Saving => {
+                match key.code {
+                    KeyCode::Char(c) => self.temp_input.push(c),
+                    KeyCode::Backspace => {
+                        self.temp_input.pop();
+                    }
+                    KeyCode::Esc => self.change_mode(EditorMode::Normal),
+                    KeyCode::Enter => {
+                        if self.file.name.is_empty() {
+                            if !self.file.messages.is_empty() {
+                                let name: String = self.temp_input.drain(..).collect();
+                                self.file.write_to_path(name.clone());
+                                self.file.name = name.clone();
+
+                                // save to mru
+                                // TODO: extract the filepath from this filename by expanding '.'
+                                // directory and then appending filename
+                                let filename = PathBuf::from(name.clone());
+                                self.config.update_mru_with(
+                                    canonicalize(&filename)
+                                        .expect("should've canonicalized the full path")
+                                        .to_str()
+                                        .expect("Why wouldn't you be able to convert this to a string?...")
+                                        .to_string(),
+                                );
+                            } else {
+                                // if file is empty... don't write anything.
+                                self.set_status(String::from("Nothing to write!..."));
+                                // unreachable!();
+                            }
+                        } else {
+                            // write to filename
+                            self.file.write_to_path(self.file.name.clone());
+                        }
+                        self.change_mode(EditorMode::Normal);
+                    }
+                    _ => (),
                 }
             }
         }
     }
-    fn run_quit(&mut self, key: KeyEvent) {
+    fn run_prequit(&mut self, key: KeyEvent) {
         match key.code {
-            _ => self.route = AppRoute::Quit,
+            KeyCode::Char('n') => self.route = AppRoute::Edit,
+            KeyCode::Char('y') => self.route = AppRoute::Quit,
+            KeyCode::Enter => self.route = AppRoute::Quit,
+            _ => (),
         }
-        // unimplemented!()    // * this quit screen is part of the app; you can have a closing protocol outside in run_app in main.
     }
+    fn change_mode(&mut self, mode: EditorMode) {
+        self.status_msg = String::new();
+        self.mode = mode;
+    }
+    fn set_status(&mut self, msg: String) {
+        self.status_msg = msg;
+    }
+
     fn unselect(&mut self) {
         self.select_state.select(None);
     }
@@ -324,14 +394,21 @@ impl App {
 
 impl Default for App {
     fn default() -> App {
-        // locate mru.  if mru not found, 
+        // TODO locate mru.  if mru not found, then default.
+        let config: DiaryConfig = if let Ok(config) = confy::load(crate::util::APP_NAME, None) {
+            config
+        } else {
+            DiaryConfig::default()
+        };
         let app = App {
+            config,
             route: AppRoute::Start,
-            start: Start::default(),
             file: commit::Diary::new(),
             input: Input::default(),
             edit: None,
             mode: EditorMode::Normal,
+            status_msg: String::default(),
+            temp_input: String::default(),
             select_state: ListState::default(),
         };
 

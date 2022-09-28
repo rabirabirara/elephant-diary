@@ -35,17 +35,40 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : turns out I only need to use non-blocking poll instead of read LMAO
 : implement scrolling and view automatically updating
     : works right out the bat with layout::Corner.  PHEW!
-
+: implement EDITING of MESSAGES
 : implement file type and file saving
     : use a popup window to type file name to write to?
-: implement start screen and config and MRU list
+    : GOT IT TO WORK! also, editing previous messages works like a charm
+    : got default file saving to work as well
+: implement start screen and MRU list
+    : mru is saved in config file using confy
+: implemented basic message bar
+
+: implement more sophisticated saving mode
+: implement message bar wrap and dynamic sizing
+: implement file saving popup window, and writing file to a name/path
+    : if they give a simple file name, just write it in current directory; if they give a path, write it there; rust handles that
+: implement message hold popup window 
+    : (which triggers if option is not set to show time next to message)
+
+: implement time conversion from Utc to Local, and showing time in message view option
+: implement configuration
+    : option to open last session or always do start screen
+    : option to autosave on commit; on by default
+    : use a config file or have options?  probably a config file like vim
 : implement special key combinations like C-BS to backspace a word
+: implement multiple files open
 : implement input cursor.
+    : implement input scroll as well, of course; need state for everything
+: implement message commit history screen
 : implement mouse
+: implement file date created (first commit of first message timestamp)
 
 : scrollbar?
 : cache input bar heights and string widths and stuff?
 : option to show/hide dates of messages in message view?
+: settings screen?
+: probably should write program version to files
 
 
 =Business logic and app state
@@ -60,6 +83,10 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : if file is too large, still open a tab, but don't put in memory
 : allow you to switch between open files in tabs
 
+-open file protocol
+: write file path to mru list
+: if mru list is more than 30 lines, pare it down
+: everytime a file is opened, update the mru list
 
 =TUI description
 
