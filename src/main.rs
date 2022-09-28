@@ -4,7 +4,8 @@
 mod app;
 mod commit;
 mod config;
-mod cursor;
+mod gapbuffer;
+mod input;
 mod util;
 
 use app::*;
@@ -98,7 +99,7 @@ fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let input = if app.edit.is_some() && app.mode == EditorMode::Editing {
         app.edit.as_ref().unwrap().edit_input.clone()
     } else {
-        app.input.write_input.clone()
+        app.input.buffer.to_string()
     };
 
     // calculate the height of the input bar first!  we will need it when making the layouts.

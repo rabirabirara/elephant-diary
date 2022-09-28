@@ -1,4 +1,6 @@
 use crate::commit;
+use crate::gapbuffer::GapBuffer;
+use crate::input::Input;
 use crate::config::DiaryConfig;
 use crate::util::current_time_string;
 use std::fs::canonicalize;
@@ -65,12 +67,6 @@ pub enum AppRoute {
     Quit,
 }
 
-#[derive(Clone, Default)]
-pub struct Input {
-    pub write_input: String,
-    pub scroll: (usize, usize),
-}
-
 pub struct Edit {
     pub edit_input: String,
     pub index: usize,
@@ -118,7 +114,7 @@ impl App {
 
                     // open the file and completely disregard the new file created by default.
                     // too lazy to refactor app.file into Option<Diary>...
-                    if let Some(filepath) = self.config.mru.iter().nth(msg_idx) {
+                    if let Some(filepath) = self.config.mru.get(msg_idx) {
                         // TODO: filepath should be absolute.
                         if let Ok(diary) = commit::Diary::read_from_path(filepath) {
                             self.file = diary;
@@ -224,16 +220,17 @@ impl App {
             EditorMode::Writing => {
                 match key.code {
                     KeyCode::Enter => {
-                        let input = self.input.write_input.trim_end();
-                        self.file.push_string(input.to_string());
-                        self.input.write_input.clear();
+                        self.input.buffer.trim_end();
+                        self.file.push_string(self.input.buffer.to_string());
+                        self.input.buffer.clear();
                     }
                     KeyCode::Char(c) => {
-                        self.input.write_input.push(c);
+                        self.input.buffer.put(c);
                     }
-                    KeyCode::Backspace => {
-                        self.input.write_input.pop();
-                    }
+                    KeyCode::Left => self.input.buffer.left(),
+                    KeyCode::Right => self.input.buffer.right(),
+                    KeyCode::Backspace => self.input.buffer.back(),
+                    KeyCode::Delete => self.input.buffer.delete(),
                     KeyCode::Esc | KeyCode::BackTab => {
                         self.change_mode(EditorMode::Normal);
                     }

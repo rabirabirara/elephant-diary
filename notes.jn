@@ -43,14 +43,22 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement start screen and MRU list
     : mru is saved in config file using confy
 : implemented basic message bar
-
 : implement more sophisticated saving mode
-: implement message bar wrap and dynamic sizing
 : implement file saving popup window, and writing file to a name/path
     : if they give a simple file name, just write it in current directory; if they give a path, write it there; rust handles that
+: create a gap buffer library
+    : just simple right now
+
+: implement proper editing
+    : gapbuffer
+    : cursor
+    : scroll
+    : selecting text
+        : select text, mass delete the text
+: expand gapbuffer to encompass popular actions
+: implement message bar wrap and dynamic sizing
 : implement message hold popup window 
     : (which triggers if option is not set to show time next to message)
-
 : implement time conversion from Utc to Local, and showing time in message view option
 : implement configuration
     : option to open last session or always do start screen
@@ -58,8 +66,6 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : use a config file or have options?  probably a config file like vim
 : implement special key combinations like C-BS to backspace a word
 : implement multiple files open
-: implement input cursor.
-    : implement input scroll as well, of course; need state for everything
 : implement message commit history screen
 : implement mouse
 : implement file date created (first commit of first message timestamp)
