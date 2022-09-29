@@ -51,9 +51,15 @@ impl GapBuffer {
         gb.grow();
         gb
     }
+    fn buf_len(&self) -> usize {
+        self.buffer.len()
+    }
     // should ONLY BE USED to check the length of the gap.  NOTHING ELSE.
     fn gap_len(&self) -> usize {
         1 + self.gap_end - self.gap_start
+    }
+    pub fn cursor(&self) -> usize {
+        self.gap_start
     }
     pub fn gap_start(&self) -> usize {
         self.gap_start
@@ -61,7 +67,26 @@ impl GapBuffer {
     pub fn gap_end(&self) -> usize {
         self.gap_end
     }
-    pub fn c_home(&mut self) {
+    pub fn go_to_place(&mut self, place: usize) {
+        // abc__d
+        // a__bcd
+        // TODO: consider mass movements later on, like the ones seen in go_to...
+        match self.gap_start.cmp(&place) {
+            std::cmp::Ordering::Equal => (),
+            std::cmp::Ordering::Less => {
+                while self.gap_start != place {
+                    self.right();
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                while self.gap_start != place {
+                    self.left();
+                }
+            }
+        }
+    }
+    pub fn go_to_beginning(&mut self) {
+        // Should be profiled.
         if self.gap_start < 100 {
             for _ in 0..self.gap_start {
                 self.left();
@@ -84,18 +109,27 @@ impl GapBuffer {
             }
         }
     }
-    pub fn c_end(&mut self) {
+    pub fn go_to_end(&mut self) {
         // ab__cd
         // ab__cd__
+        // abcd__
         // extend with gap, split at gap_end, drain gap length, reset pointers
-        todo!()
+        if self.buf_len() - 1 - self.gap_end < 100 {    // also does a "already-at-end" check
+            for _ in 0..(self.buf_len() - 1 - self.gap_end) {
+                self.right();
+            }
+        } else {
+            let gl = self.gap_len();
+            self.buffer.extend_from_within(self.gap_start..self.gap_end+1);
+            let mut v = self.buffer.split_off(self.gap_end+1);
+            self.buffer.drain(self.gap_start..);
+            self.buffer.append(&mut v);
+            self.gap_start = self.buf_len() - gl;
+            self.gap_end = self.gap_start + gl - 1;
+        }
     }
     pub fn left(&mut self) {
         if self.gap_start > 0 {
-            // ? Performance of this?
-            // let mut v = self.buffer.chars().collect::<Vec<char>>();
-            // v.swap(self.gap_start-1, self.gap_end);
-            // self.buffer = v.into_iter().collect();
             self.buffer.swap(self.gap_start - 1, self.gap_end);
             self.gap_start -= 1;
             self.gap_end -= 1;
@@ -176,12 +210,8 @@ impl GapBuffer {
 
 impl Display for GapBuffer {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        let mut v = String::new();
-        for i in 0..self.buffer.len() {
-            if !(i >= self.gap_start) || !(i <= self.gap_end) {
-                v.push(self.buffer[i]);
-            }
-        }
-        write!(f, "{}", v)
+        let pregap = self.buffer.iter().take(self.gap_start).collect::<String>();
+        let postgap = self.buffer.iter().skip(self.gap_end + 1).collect::<String>();
+        write!(f, "{}{}", pregap, postgap)
     }
 }

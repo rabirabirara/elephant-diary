@@ -1,6 +1,5 @@
 use crate::commit;
-use crate::gapbuffer::GapBuffer;
-use crate::input::Input;
+use crate::text::gapbuffer::GapBuffer;
 use crate::config::DiaryConfig;
 use crate::util::current_time_string;
 use std::fs::canonicalize;
@@ -37,7 +36,7 @@ pub struct App {
     pub file: commit::Diary,
 
     // the state of the current input
-    pub input: Input,
+    pub input: GapBuffer,
 
     // the state of the current edit
     pub edit: Option<Edit>,
@@ -220,17 +219,17 @@ impl App {
             EditorMode::Writing => {
                 match key.code {
                     KeyCode::Enter => {
-                        self.input.buffer.trim_end();
-                        self.file.push_string(self.input.buffer.to_string());
-                        self.input.buffer.clear();
+                        self.input.trim_end();
+                        self.file.push_string(self.input.to_string());
+                        self.input.clear();
                     }
                     KeyCode::Char(c) => {
-                        self.input.buffer.put(c);
+                        self.input.put(c);
                     }
-                    KeyCode::Left => self.input.buffer.left(),
-                    KeyCode::Right => self.input.buffer.right(),
-                    KeyCode::Backspace => self.input.buffer.back(),
-                    KeyCode::Delete => self.input.buffer.delete(),
+                    KeyCode::Left => self.input.left(),
+                    KeyCode::Right => self.input.right(),
+                    KeyCode::Backspace => self.input.back(),
+                    KeyCode::Delete => self.input.delete(),
                     KeyCode::Esc | KeyCode::BackTab => {
                         self.change_mode(EditorMode::Normal);
                     }
@@ -401,7 +400,7 @@ impl Default for App {
             config,
             route: AppRoute::Start,
             file: commit::Diary::new(),
-            input: Input::default(),
+            input: GapBuffer::default(),
             edit: None,
             mode: EditorMode::Normal,
             status_msg: String::default(),
