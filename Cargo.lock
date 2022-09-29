@@ -92,19 +92,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dated-diary"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "confy",
- "crossterm",
- "serde",
- "serde_derive",
- "textwrap",
- "tui",
-]
-
-[[package]]
 name = "directories"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -123,6 +110,19 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
+]
+
+[[package]]
+name = "elephant-diary"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "confy",
+ "crossterm",
+ "serde",
+ "serde_derive",
+ "textwrap",
+ "tui",
 ]
 
 [[package]]

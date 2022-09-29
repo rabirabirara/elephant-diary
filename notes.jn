@@ -56,6 +56,7 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
     : selecting text
         : select text, mass delete the text
 : expand gapbuffer to encompass popular actions
+: implement clipboard
 : implement message bar wrap and dynamic sizing
 : implement message hold popup window 
     : (which triggers if option is not set to show time next to message)
@@ -70,12 +71,16 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement mouse
 : implement file date created (first commit of first message timestamp)
 
+: make file type into an archive like with .osu
 : scrollbar?
 : cache input bar heights and string widths and stuff?
 : option to show/hide dates of messages in message view?
 : settings screen?
 : probably should write program version to files
-
+: far future: sixel and image rendering
+    : when user posts an image, save it a la VimPaste to the file's type
+    : https://github.com/fdehau/tui-rs/issues/143
+    : don't necessarily have to display inline - could make a corner, like the 4chan image hover does, or maybe popup window?
 
 =Business logic and app state
 
