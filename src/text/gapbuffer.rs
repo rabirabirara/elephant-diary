@@ -67,7 +67,7 @@ impl GapBuffer {
     pub fn gap_end(&self) -> usize {
         self.gap_end
     }
-    pub fn go_to_place(&mut self, place: usize) {
+    pub fn seek(&mut self, place: usize) {
         // abc__d
         // a__bcd
         // TODO: consider mass movements later on, like the ones seen in go_to...

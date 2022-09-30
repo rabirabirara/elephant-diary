@@ -16,13 +16,14 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::app::*;
+use crate::app::app::*;
+use crate::util::*;
 
 pub fn edit_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let area = f.size();
 
     let input = if app.edit.is_some() && app.mode == EditorMode::Editing {
-        app.edit.as_ref().unwrap().edit_input.clone()
+        app.edit.as_ref().unwrap().get()
     } else {
         app.input.to_string()
     };

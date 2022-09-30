@@ -30,7 +30,7 @@ pub struct App {
     // the configuration of the application.
     pub config: DiaryConfig,
     // what screen am I on right now?
-    pub route: AppRoute,
+    pub routes: Vec<AppRoute>,
 
     // not really planning to have more than one file open at a time.  it's a diary for god's sake.
     pub file: commit::Diary,
@@ -58,24 +58,34 @@ pub struct App {
     pub select_state: ListState,
 }
 
-#[derive(PartialEq)]
+// TODO: use this instead of just diary.
+struct FileState {
+    diary: commit::Diary,
+    saved: bool,
+}
+
+#[derive(PartialEq, Clone, Copy)]
 pub enum AppRoute {
     Start,
     Edit,
+    Help,
     PreQuit,
-    Quit,
+    // Quit,
 }
 
 pub struct Edit {
-    pub edit_input: String,
-    pub index: usize,
+    edit_input: String,
+    index: usize,
 }
 
 impl Edit {
     fn from(edit_input: String, index: usize) -> Self {
         Edit { edit_input, index }
     }
-    fn update(&mut self, s: String) {
+    pub fn get(&self) -> String {
+        self.edit_input.clone()
+    }
+    pub fn update(&mut self, s: String) {
         self.edit_input = s;
     }
 }
@@ -85,14 +95,15 @@ impl App {
     pub fn startup(&mut self) {}
     // call normal loop routine
     pub fn run(&mut self) -> io::Result<bool> {
-        if self.route == AppRoute::Quit {
+        if self.routes.is_empty() {
             return Ok(false);
         }
         if let Ok(true) = event::poll(std::time::Duration::from_secs(0)) {
             if let Event::Key(key) = event::read()? {
-                match self.route {
+                match self.routes.last().expect("self.routes should have an element as checked above") {
                     AppRoute::Start => self.run_start(key),
                     AppRoute::Edit => self.run_edit(key),
+                    AppRoute::Help => self.run_help(key),
                     AppRoute::PreQuit => self.run_prequit(key), // TODO should run a quit protocol - if not saved, don't quit yet, try and confirm!
                     _ => unreachable!(),
                 }
@@ -100,11 +111,18 @@ impl App {
         }
         Ok(true)
     }
+    pub fn route(&self) -> Option<AppRoute> {
+        self.routes.last().copied()
+    }
+    fn quit(&mut self) {
+        self.routes.clear();
+    }
     fn run_start(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char('q') => self.route = AppRoute::PreQuit,
+            KeyCode::Char('q') => self.route_to(AppRoute::PreQuit),
+            KeyCode::Char('h') => self.route_to(AppRoute::Help),
             KeyCode::Char('n') => {
-                self.route = AppRoute::Edit;
+                self.route_to(AppRoute::Edit);
             }
             KeyCode::Enter => {
                 if let Some(msg_idx) = self.selected() {
@@ -128,7 +146,7 @@ impl App {
                         );
                     }
 
-                    self.route = AppRoute::Edit;
+                    self.route_to(AppRoute::Edit);
                 }
             }
             KeyCode::Up => self.select_down(self.config.mru.len()),
@@ -209,7 +227,8 @@ impl App {
                         // write to mru when file has a filename and is being opened, or when
                         // a file is new and is being written.
                     }
-                    KeyCode::Char('q') => self.route = AppRoute::PreQuit,
+                    KeyCode::Char('h') => self.route_to(AppRoute::Help),
+                    KeyCode::Char('q') => self.route_to(AppRoute::PreQuit),
                     KeyCode::Up => self.select_up(self.file.messages.len()),
                     KeyCode::Down => self.select_down(self.file.messages.len()),
                     KeyCode::Esc => self.unselect(),
@@ -305,9 +324,10 @@ impl App {
                                 self.config.update_mru_with(
                                     canonicalize(&filename)
                                         .expect("should've canonicalized the full path")
-                                        .to_str()
-                                        .expect("Why wouldn't you be able to convert this to a string?...")
-                                        .to_string(),
+                                        .into_os_string()
+                                        // .expect("Why wouldn't you be able to convert this to a string?...")
+                                        // .to_string(),
+                                        .into_string().expect("why wouldn't you be able to convert this into a string?")
                                 );
                             } else {
                                 // if file is empty... don't write anything.
@@ -325,12 +345,44 @@ impl App {
             }
         }
     }
+    fn run_help(&mut self, key: KeyEvent) {
+        match key.code {
+            // KeyCode::Char(c) => {
+            //     self.routes.pop();
+            // }
+            _ => {
+                self.routes.pop();
+            }
+        }
+    }
     fn run_prequit(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char('n') => self.route = AppRoute::Edit,
-            KeyCode::Char('y') => self.route = AppRoute::Quit,
-            KeyCode::Enter => self.route = AppRoute::Quit,
+            KeyCode::Char('n') => {
+                self.routes.pop();
+            },
+            KeyCode::Char('y') => self.quit(),
+            KeyCode::Enter => self.quit(),
             _ => (),
+        }
+    }
+    fn route_to(&mut self, route: AppRoute) {
+        // change route and do clearing, rearranging, etc.
+        match route {
+            AppRoute::Start => {
+                self.routes.clear();
+                self.routes.push(AppRoute::Start);
+            }
+            AppRoute::Edit => {
+                // if we enter edit from start, help, prequit, we don't need to go back.
+                self.routes.clear();
+                self.routes.push(AppRoute::Edit);
+            }
+            AppRoute::Help => {
+                self.routes.push(AppRoute::Help);
+            }
+            AppRoute::PreQuit => {
+                self.routes.push(AppRoute::PreQuit);
+            }
         }
     }
     fn change_mode(&mut self, mode: EditorMode) {
@@ -398,7 +450,7 @@ impl Default for App {
         };
         let app = App {
             config,
-            route: AppRoute::Start,
+            routes: vec![AppRoute::Start],
             file: commit::Diary::new(),
             input: GapBuffer::default(),
             edit: None,

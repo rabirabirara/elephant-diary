@@ -49,14 +49,20 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : create a gap buffer library
     : just simple right now
 
+: bottom/top/sidebar that shows current available commands and what they can do?
+: create an image-to-ascii crate and then use it to display images in popup window on selection
+: create a help screen
+: create a better start screen, with the elephant on it
+: make the MRU paths save nicer than right now
+    : just clean up some errant backslashes
 : implement proper editing
     : gapbuffer
     : cursor
     : scroll
+        : write a scroll object, which sends cursor information to the ui renderer.  if the cursor is not in view, scroll up until it is.  if in view, just move the cursor; don't change the viewport.  viewport should determine scroll and has its own position.
     : selecting text
         : select text, mass delete the text
 : expand gapbuffer to encompass popular actions
-: implement clipboard
 : implement message bar wrap and dynamic sizing
 : implement message hold popup window 
     : (which triggers if option is not set to show time next to message)
@@ -69,18 +75,23 @@ The file type is a "File", which consists of a list of "Messages" in chronologic
 : implement multiple files open
 : implement message commit history screen
 : implement mouse
-: implement file date created (first commit of first message timestamp)
+: implement search function
+: in message view: split up messages by date in vertical blocks, and display only time next to them
+: https://www.asciiart.eu/animals/elephants morfina's work is cute
+: https://ascii.co.uk/art/elephant #2 is cute
+    : seal has a wise elephant, could be used for serious stuff?
 
-: make file type into an archive like with .osu
+: elephant diary talks back; maybe even give certain moods?
+    : clippy + cowsay
 : scrollbar?
 : cache input bar heights and string widths and stuff?
 : option to show/hide dates of messages in message view?
 : settings screen?
 : probably should write program version to files
-: far future: sixel and image rendering
-    : when user posts an image, save it a la VimPaste to the file's type
-    : https://github.com/fdehau/tui-rs/issues/143
-    : don't necessarily have to display inline - could make a corner, like the 4chan image hover does, or maybe popup window?
+
+: future: discord client?
+    : tree-widgets
+    : https://github.com/lemunozm/termchat
 
 =Business logic and app state
 
@@ -138,3 +149,4 @@ Make it normal otherwise.
 So the way app design works is that you have AppState for a Stateful application, and then you have the UI, which may have its own state, and then you do every 
 
 # Write a function that, given a rectangle and a string, decides how to fit and wrap the string.
+

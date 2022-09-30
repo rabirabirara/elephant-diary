@@ -8,9 +8,10 @@ mod text;
 mod ui;
 mod util;
 
-use app::*;
+use app::app::*;
 
 use crate::ui::edit::*;
+use crate::ui::help::*;
 use crate::util::current_time_string;
 use std::io;
 use std::thread;
@@ -44,11 +45,16 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    match app.route {
-        AppRoute::Start => start_screen(f, app),
-        AppRoute::Edit => edit_screen(f, app),
-        AppRoute::PreQuit => prequit_screen(f, app),
-        AppRoute::Quit => (), // TODO might want to provide quitting routines later on.
+    // if there are no routes, don't render anything; the app will close anyway once this function
+    // is done. remember, ui draws before app logic updates.
+    if let Some(route) = app.route() {
+        match route {
+            AppRoute::Start => start_screen(f, app),
+            AppRoute::Edit => edit_screen(f, app),
+            AppRoute::Help => help_screen(f, app),
+            AppRoute::PreQuit => prequit_screen(f, app),
+            // AppRoute::Quit => (), // TODO might want to provide quitting routines later on.
+        }
     }
 }
 
